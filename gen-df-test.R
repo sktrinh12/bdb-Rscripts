@@ -1,0 +1,2 @@
+'Filename','Well.ID','Plate.ID','Stain.Date','Plate.Row','Plate.Column','Control.Row','Target.Species','Specificity (CD)','Isotype.Host.Species','Clone','Fluorochrome','Parameter','Batch.Number','ug.test','units','Sample.Types','Sample.Species','Sample.Strain','Donor.ID','spec1_range','spec2_range','spec3_range','gating_method','gating_argument'
+c('LWB','DN22','Human','MS','30-40','20-30','24-42','sd','3')
