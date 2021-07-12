@@ -28,3 +28,4 @@ res <- httr::GET(url = link,
 
 res <- content(res, "parsed")
 res
+res$state

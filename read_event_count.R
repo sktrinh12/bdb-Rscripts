@@ -165,7 +165,7 @@ popRidgePlot <- function(row_letter, param, da, fcs_files_ordered) {
 
 generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index, replaceString, pltsave, trigger, filter_param) {
   fcs_files <- list.files(paste0(parentpath, dirname, count), pattern = ".fcs")
-  #print(fcs_files)
+  print(fcs_files)
   
   if (fileNameType == "counter") {
       orderedIndex <- sapply(fcs_files, getCounter, USE.NAMES = F)
@@ -195,9 +195,9 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
   #intNumColms = length(fcs_files) / 8
   #x <- seq(1:intNumColms)
   plateSeq <- seq(1,96)
-  blanks <- setdiff(plateSeq,orderedIndex)
+  #blanks <- setdiff(plateSeq,orderedIndex)
   #print(setdiff(plateSeq,orderedIndex))
-  #blanks <- c() #- bc 07June2021 96 No Stain -1 has re-dos that were counted
+  blanks <- c() #- bc 07June2021 96 No Stain -1 has re-dos that were counted
   # set this only if counter digits are not 1-96 and/or there are missing fcs files with proper naming convention
   x <- seq(1:12)
   y <- LETTERS[1:8]
@@ -227,7 +227,8 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
     stdErr <- std/sqrt(nrow(validWells))
     min_val <- as.vector(summaryWells[1])
     
-    message('created df')
+    write.csv(data, paste0(parentpath, Sys.Date(), "_CELLCNT_plate", count, ".csv"), row.names = FALSE)
+    message('created cell count df')
 
     dataTable <- data.frame(
       std=std,
@@ -290,6 +291,7 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
       doc <- read_pptx() %>%
         add_slide() %>%
         ph_with(value=paste(dirname,count, "- Scatter"), location = ph_location_type(type = "title"))
+      
     }
 
     blankDF <- data.frame()
@@ -658,6 +660,7 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
           df_stats[cnt, "rSD+"] <- rsd_pos
           df_stats[cnt, "rSD-"] <- rsd_neg
           
+          
           xvar <- sym(param_name_list[i])
           p <- ggplot(da, aes(x= !!xvar)) +
             geom_histogram(stat="bin", bins = nbr_bins)
@@ -742,6 +745,12 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
         )
         message('created histogram plot')
         
+        # calculate SI and SN
+        df_stats <- df_stats %>% 
+          dplyr::mutate(SI= (`MFI+` - `MFI-`)/(2*`rSD-`)) %>%
+          dplyr::mutate(SN= (`MFI+`/`MFI-`))
+        
+        
         write.csv(df_stats,paste0(parentpath, Sys.Date(), "_DF_plate", count, ".csv"), row.names = FALSE)
         df_stats <- df_stats %>%
                       flextable::flextable() %>%
@@ -783,8 +792,12 @@ param_list = list("1-12"="V-450-A",
                   "61-72"="UV-379-A",
                   "73-84"="B-525-A",
                   "85-96"="YG-582-A",
-                  "gate_fsc" = c(1e5, 2e5),
-                  "gate_ssc" = c(3e4, 1e5),
+                  #"gate_fsc" = c(1e5, 2e5),
+                  #"gate_ssc" = c(3e4, 1e5),
+                  "sct_x" = "FSC-A",
+                  "sct_y" = "SSC-A",
+                  "gate_yadj" = 1e6,
+                  "gate_tgt" = c(1e5, 6e4, 0.8, 4), #fcs-a end, start, quantile, K
                   "gate_hst_1"= c(1.7e3, 3.8e3),
                   "gate_hst_2"= c(2.4e3, 3.8e3),
                   "gate_hst_3"= c(2e3, 3.8e3),
@@ -838,11 +851,11 @@ param_list = list("1-12"="V-450-A",
 )
 
 
-parentpath = "C:/Users/10322096/Documents/fcs_data/10Jun2021 8 Channel/"
-subdirName = "8 Channel Plate "
+parentpath = "C:/Users/10322096/Documents/fcs_data/30Jun0221 8 Old vs 8 New Test/"
+subdirName = "Old 8 - Plate "
 # (1) heatmap (2) scatter (3) histogram (4) ridgeplot
 trg = list(T,T,T,T)
-trg = list(T,F,F,F)
+trg = list(T,F,T,F)
 
 generatePlots(dirname = subdirName, 
               count = 1, 
@@ -853,3 +866,4 @@ generatePlots(dirname = subdirName,
               pltsave = T, 
               trigger = trg, 
               filter_param = param_list)
+  
