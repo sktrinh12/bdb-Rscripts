@@ -20,9 +20,9 @@ files_[order_files]
 letterMatrix <- sapply(LETTERS[1:8], function(x) rep(x,12), USE.NAMES = F)
 orderedWellID <- mapply(zeroPadpaste0, as.vector(letterMatrix), rep(seq(1,12),8), USE.NAMES = F)
 
+subdirName = "New 8 - "
 
-
-fcs_files <- list.files(paste0(parentpath, subdirName, 1), pattern = ".fcs")
+fcs_files <- list.files(paste0(parentpath, subdirName, 1), pattern = ".fcs$")
 fcs_files
 orderedIndex <- sapply(fcs_files, getCounter, USE.NAMES = F)
 
@@ -35,6 +35,10 @@ orderedIndex
 fcs_files_ordered <- fcs_files[order(orderedIndex, fcs_files)]
 fs <- flowCore::read.flowSet(fcs_files_ordered, path=(paste0(parentpath, subdirName, 1)))
 fs
+
+x1 <- flowCore::read.flowSet(fcs_files_ordered[1],path = paste0(parentpath, subdirName, 1))
+x2 <- flowCore::read.flowSet(fcs_files_ordered[2],path = paste0(parentpath, subdirName, 1))
+
 
 dat <- fs[[2]]
 x <- seq(1:12)

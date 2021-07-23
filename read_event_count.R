@@ -12,18 +12,12 @@ intDefaultNumColms = 12
 
 ## ORDER the fcs files manually
 
-getAlpha <- function(filename, exclude_wash) {
+getAlpha <- function(filename) {
   split_string = stringr::str_split(filename, pattern="_")
-  alphaNum = split_string[[1]][length(split_string[[1]])]
-  alphaNum = substr(alphaNum,1,3)
-  if (exclude_wash) {
-    nbr = as.numeric(substr(alphaNum,2,3))
-    #print(nbr)
-    if (nbr < 9) {
-      return(alphaNum)
-    } else {
-      return(NULL)
-    }
+  alphaNum = split_string[[1]][3]
+  nbr = as.numeric(substr(alphaNum,2,3))
+  if (nbr < 10) {
+    alphaNum = paste0(substr(alphaNum,1,1), "0", substr(alphaNum,2,3))  
   }
   return(alphaNum)
 }
@@ -163,23 +157,48 @@ popRidgePlot <- function(row_letter, param, da, fcs_files_ordered) {
 
 
 
-generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index, replaceString, pltsave, trigger, filter_param) {
-  fcs_files <- list.files(paste0(parentpath, dirname, count), pattern = ".fcs")
+generatePlots <- function(dirname, count, autogate, autogate_index, replaceString, pltsave, trigger, filter_param) {
+  wash_columns <- c(seq(9,12), seq(21,24), seq(33,36), seq(45,48), seq(57,60),seq(69,72), seq(81,84), seq(93,96))
+  plateSeq <- seq(1,96)
+  new_orderlist <- rep(NA, 96)
+  
+  fcs_files <- list.files(paste0(parentpath, dirname, count), pattern = ".fcs$")
   print(fcs_files)
   
-  if (fileNameType == "counter") {
-      orderedIndex <- sapply(fcs_files, getCounter, USE.NAMES = F)
-  } else {
-      orderedIndex <- sapply(fcs_files, function(x) {
-        match(getAlpha(x,F), orderedWellID)
+  orderedIndex <- sapply(fcs_files, function(x) {
+        match(getAlpha(x), orderedWellID)
       }, USE.NAMES = F)
+  
+  current_wash_colms <- intersect(wash_columns, orderedIndex)
+  # select random valid wash column to fill in the missing fcs file
+  rdn_wash_colm <- sample(current_wash_colms, 1)
+  
+  blanks <- setdiff(plateSeq, orderedIndex)
+  print('Current blank wells:')
+  print(blanks)
+  #blanks <- c() #- bc 07June2021 96 No Stain -1 has re-dos that were counted
+  # set this only if counter digits are not 1-96 and/or there are missing fcs files with proper naming convention
+  if (!identical(blanks, character(0))) {
+    new_orderedIndex <- order(orderedIndex)
+    i_cnt <- 1
+    for (i in plateSeq) {
+      if (i %in% blanks){
+        new_orderlist[i] <- rdn_wash_colm
+      } else {
+        new_orderlist[i] <- new_orderedIndex[i_cnt]
+        i_cnt = i_cnt + 1
+      }
+    }
+    fcs_files_ordered <- fcs_files[new_orderlist] # fill in missing fcs files
+  } else {
+    fcs_files_ordered <- fcs_files[order(orderedIndex, fcs_files)] #original way to order the files; full 96 files
   }
-  fcs_files_ordered <- fcs_files[order(orderedIndex, fcs_files)]
-  fs <- read.flowSet(fcs_files_ordered, path = (paste0(parentpath, dirname, count)))
-  #print(fs)
-  #rectGate <- rectangleGate(list("FSC-A" = filter_param$gate_fsc, "SSC-A" = filter_param$gate_ssc))
+  
+  print("ORDERED FCS FILES")
+  print(fcs_files_ordered)
+  
+  fs <- read.flowSet(fcs_files_ordered, path = (file.path(parentpath, paste0(dirname, count))))
   dat = fs[[autogate_index]]
-  #dat = dat[rowMeans(exprs(dat[,c("FSC-A","SSC-A")])>0) == 1,]
   set_gate <- openCyto::gate_flowclust_2d(dat, 
                                           xChannel = "FSC-A", 
                                           yChannel = "SSC-A", 
@@ -187,31 +206,22 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
                                           target = c(filter_param$gate_tgt[1], filter_param$gate_tgt[2]), 
                                           quantile=filter_param$gate_tgt[3])
 
-  fsOutput = sapply(seq_along(fs), function(x) {
-    filter_res = flowCore::filter(fs[[x]], set_gate)
-    summary(filter_res)$true
-  })
-
-  #intNumColms = length(fcs_files) / 8
-  #x <- seq(1:intNumColms)
-  plateSeq <- seq(1,96)
-  #blanks <- setdiff(plateSeq,orderedIndex)
-  #print(setdiff(plateSeq,orderedIndex))
-  blanks <- c() #- bc 07June2021 96 No Stain -1 has re-dos that were counted
-  # set this only if counter digits are not 1-96 and/or there are missing fcs files with proper naming convention
   x <- seq(1:12)
   y <- LETTERS[1:8]
 
-    if (trigger[[1]] == T) {
+  if (trigger[[1]] == T) {
+      
     data <- expand.grid(X=x, Y=y)
     tmpVector <- c()
     cnt = 1
+    
     for (i in plateSeq) {
       if (i %in% blanks) {
          tmpVector <- c(tmpVector,NA)
       } else {
-         tmpVector <- c(tmpVector, fsOutput[cnt])
-         cnt = cnt + 1
+         filter_res = flowCore::filter(fs[[i]], set_gate)
+         fsOutput <- summary(filter_res)$true
+         tmpVector <- c(tmpVector, fsOutput)
       }
     }
 
@@ -301,7 +311,7 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
     if (trigger[[2]]) {
 
       # scatter
-        #if (fileNameType %in% c("ggcyto", "counter")) {
+    
         plist = list()
         cnt = 1
         if (!autogate) {
@@ -449,7 +459,7 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
       nbr_wells <- 96
       first_colm_hist_cnt <- 55
       first_column <- c(1,13,25,37,49,61,73,85)
-      blanks <- union(blanks, c(seq(9,12), seq(21,24), seq(33,36), seq(45,48), seq(57,60),seq(69,72), seq(81,84), seq(93,96)))
+      blanks <- union(blanks, wash_columns)
       max_fs <- length(fs)
       df_stats <- setNames(data.frame(matrix(ncol = 6, nrow = 0)), c("INDEX", "SAMPLE_NAME", "MFI+", "MFI-", "rSD+", "rSD-"))
       
@@ -779,7 +789,7 @@ generatePlots <- function(dirname, count, fileNameType, autogate, autogate_index
       #  print(doc, target = paste0(parentpath, Sys.Date(), "_dataSlides_", count, ".pptx"))
       #}
     #)
-      print(doc, target = paste0(parentpath, Sys.Date(), "_dataSlides_", count, ".pptx"))
+      #print(doc, target = paste0(parentpath, Sys.Date(), "_dataSlides_", count, ".pptx"))
 }
 
 
@@ -851,15 +861,14 @@ param_list = list("1-12"="V-450-A",
 )
 
 
-parentpath = "C:/Users/10322096/Documents/fcs_data/30Jun0221 8 Old vs 8 New Test/"
-subdirName = "Old 8 - Plate "
+parentpath = "C:/Users/10322096/Documents/fcs_data/8v8_redo_1907_2107/21Jul2021/"
+subdirName = "New 8 - "
 # (1) heatmap (2) scatter (3) histogram (4) ridgeplot
 trg = list(T,T,T,T)
-trg = list(T,F,T,F)
+trg = list(T,F,F,F) 
 
 generatePlots(dirname = subdirName, 
-              count = 1, 
-              fileNameType = "counter",
+              count = 4, 
               autogate = T,
               autogate_index = 1,
               replaceString = "Specimen_00\\d{1}_", 

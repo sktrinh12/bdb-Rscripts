@@ -1,8 +1,7 @@
 library(httr)
 
-#arg = 'p'
-arg = 'g'
-dag_run_id = 'testrun14'
+
+dag_run_id = 'testrun21'
 VM = "10.29.128.4"
 expid_dir = "20211806TEST2"
 
