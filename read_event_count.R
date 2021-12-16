@@ -157,7 +157,7 @@ popRidgePlot <- function(row_letter, param, da, fcs_files_ordered) {
 
 
 
-generatePlots <- function(dirname, count, autogate, autogate_index, replaceString, pltsave, trigger, filter_param) {
+generatePlots <- function(dirname, count, autogate, autogate_index, replaceString, pltsave, trigger, filter_param, method_name) {
   wash_columns <- c(seq(9,12), seq(21,24), seq(33,36), seq(45,48), seq(57,60),seq(69,72), seq(81,84), seq(93,96))
   plateSeq <- seq(1,96)
   new_orderlist <- rep(NA, 96)
@@ -237,7 +237,7 @@ generatePlots <- function(dirname, count, autogate, autogate_index, replaceStrin
     stdErr <- std/sqrt(nrow(validWells))
     min_val <- as.vector(summaryWells[1])
     
-    write.csv(data, paste0(parentpath, Sys.Date(), "_CELLCNT_plate", count, ".csv"), row.names = FALSE)
+    write.csv(data, paste0(parentpath, Sys.Date(), "_", method_name,"_CELLCNT_plate", count, ".csv"), row.names = FALSE)
     message('created cell count df')
 
     dataTable <- data.frame(
@@ -281,7 +281,7 @@ generatePlots <- function(dirname, count, autogate, autogate_index, replaceStrin
 
       if (pltsave) {
       ggsave(
-        filename = paste0(parentpath, Sys.Date(), "_HM_plate", count, ".png"),
+        filename = paste0(parentpath, Sys.Date(),"_", method_name, "_HM_plate", count, ".png"),
         plot = plt,
         scale = 1,
         width = 250,
@@ -425,7 +425,7 @@ generatePlots <- function(dirname, count, autogate, autogate_index, replaceStrin
     if (pltsave) {
       p <- arrangeGrob(grobs=plist, top = paste(dirname, count), bottom = filter_param$sct_x, left = filter_param$sct_y, ncol=intDefaultNumColms) #ncol=intNumColms)
       ggsave(
-        filename = paste0(parentpath, Sys.Date(), "_SCT_plate", count, ".png"),
+        filename = paste0(parentpath, Sys.Date(), "_", method_name, "_SCT_plate", count, ".png"),
         plot = p,
         scale = 1,
         width = 300,
@@ -744,7 +744,7 @@ generatePlots <- function(dirname, count, autogate, autogate_index, replaceStrin
         p <- arrangeGrob(grobs=plist2, top = paste(dirname, count), bottom = "Param", left = "Count", ncol=intDefaultNumColms)
         
         ggsave(
-          filename = paste0(parentpath, Sys.Date(), "_HST_plate", count, ".png"),
+          filename = paste0(parentpath, Sys.Date(), "_", method_name, "_HST_plate", count, ".png"),
           plot = p,
           scale = 1,
           width = 300,
@@ -761,7 +761,7 @@ generatePlots <- function(dirname, count, autogate, autogate_index, replaceStrin
           dplyr::mutate(SN= (`MFI+`/`MFI-`))
         
         
-        write.csv(df_stats,paste0(parentpath, Sys.Date(), "_DF_plate", count, ".csv"), row.names = FALSE)
+        write.csv(df_stats,paste0(parentpath, Sys.Date(),"_", method_name, "_DF_plate", count, ".csv"), row.names = FALSE)
         df_stats <- df_stats %>%
                       flextable::flextable() %>%
                       flextable::colformat_num() %>%
@@ -861,18 +861,20 @@ param_list = list("1-12"="V-450-A",
 )
 
 
-parentpath = "C:/Users/10322096/Documents/fcs_data/8v8_redo_1907_2107/21Jul2021/"
-subdirName = "New 8 - "
+parentpath = "C:/Users/10322096/Documents/fcs_data/8Chl_vs_96CR_redo/28Jul2021 8 Channel vs 96 COREHead/"
+subdirName = "96 COREHead Plate "
+method_name = "96CR"
 # (1) heatmap (2) scatter (3) histogram (4) ridgeplot
 trg = list(T,T,T,T)
-trg = list(T,F,F,F) 
+trg = list(F,T,F,F) 
 
 generatePlots(dirname = subdirName, 
-              count = 4, 
+              count = 3, 
               autogate = T,
               autogate_index = 1,
               replaceString = "Specimen_00\\d{1}_", 
               pltsave = T, 
               trigger = trg, 
-              filter_param = param_list)
+              filter_param = param_list,
+              method_name = method_name)
   

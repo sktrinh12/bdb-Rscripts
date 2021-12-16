@@ -1,14 +1,3 @@
-setwd("C:/Users/10322096/Documents/gitrepos/metadata-file-shiny-app/")
-install.packages("renv")
-renv::restore()
-
-renv::modify()
-renv::install("colourpicker")
-renv::record(records = 'colourpicker')
-
-renv::snapshot()
-
-
 
 files = list.files("./LWB/P1/FCS Files/", pattern = "*.fcs$")
 files_ = sapply(files, function(x) grep("fcs$", x, value=T), USE.NAMES = F)
@@ -20,20 +9,95 @@ files_[order_files]
 letterMatrix <- sapply(LETTERS[1:8], function(x) rep(x,12), USE.NAMES = F)
 orderedWellID <- mapply(zeroPadpaste0, as.vector(letterMatrix), rep(seq(1,12),8), USE.NAMES = F)
 
-subdirName = "New 8 - "
-
-fcs_files <- list.files(paste0(parentpath, subdirName, 1), pattern = ".fcs$")
-fcs_files
-orderedIndex <- sapply(fcs_files, getCounter, USE.NAMES = F)
+fcs_files <- list.files(paste0(parentpath, subdirName, 4), pattern = ".fcs$")
 
 orderedIndex <- sapply(fcs_files, function(x) {
-  match(getAlpha(x,F), orderedWellID)
+  match(getAlpha(x), orderedWellID)
 }, USE.NAMES = F)
+current_wash_colms <- intersect(wash_columns, orderedIndex)
+rdn_wash_colm <- sample(current_wash_colms, 1)
+rdn_wash_colm
+
+plateSeq <- seq(1,96)
+blanks <- setdiff(plateSeq,orderedIndex)
+
+blanks
+
+orderedIndex <- order(orderedIndex)
+
+new_fcs_files_ordered <- rep(NA, 96)
+
+
+i_cnt <- 1
+for (i in seq(96)) {
+  if (i %in% blanks){
+    new_fcs_files_ordered[i] <- rdn_wash_colm
+  } else {
+    new_fcs_files_ordered[i] <- orderedIndex[i_cnt]
+    i_cnt = i_cnt + 1
+  }
+}
+
+fs
+
+new_fcs_files_ordered
+
 orderedIndex
-#fcs_files <- list.files(paste0(dir_path), pattern = ".fcs")
-#orderIndex = sapply(fcs_files, getCounter, USE.NAMES = F)
+fcs_files
+fcs_files[new_fcs_files_ordered]
+
+fcs_files[order(orderedIndex, fcs_files)]
+orderedIndex
+
+filter_param = list("gate_tgt" = c(1e5, 6e4, 0.8, 4))
+
+f1 <- flowCore::read.FCS(file.path(parentpath, paste0(subdirName,4), fcs_files[new_fcs_files_ordered[1]]))
+
+set_gate <- openCyto::gate_flowclust_2d(f1, 
+                            xChannel = "FSC-A", 
+                            yChannel = "SSC-A", 
+                            K = filter_param$gate_tgt[4], 
+                            target = c(filter_param$gate_tgt[1], filter_param$gate_tgt[2]), 
+                            quantile=filter_param$gate_tgt[3])
+
+f_ <- flowCore::read.FCS(file.path(parentpath, paste0(subdirName,4), fcs_files[new_fcs_files_ordered[13]]))
+
+ggcyto(f_, aes(x = "FSC-A", y = "SSC-A")) + geom_hex(bins=150)
+
+
+filter_res <- flowCore::filter(f_, set_gate)
+summary(filter_res)$true
+
+
+tmpVector <- c()
+i_cnt = 1
+x <- seq(1:12)
+y <- LETTERS[1:8]
+fn <- c()
+data <- expand.grid(X=x, Y=y)
+
+for (i in plateSeq) {
+  fn <- c(fn, basename(keyword(fs[[i]])$FILENAME))
+  if (i %in% blanks) {
+    tmpVector <- c(tmpVector,NA)
+    
+  } else {
+    filter_res = flowCore::filter(fs[[i]], set_gate)
+    fsOutput <- summary(filter_res)$true
+    tmpVector <- c(tmpVector, fsOutput)
+    
+    #i_cnt = i_cnt + 1
+  }
+  
+}
+
+
+data$Z <- tmpVector
+data$fn <- fn
+data
+
 fcs_files_ordered <- fcs_files[order(orderedIndex, fcs_files)]
-fs <- flowCore::read.flowSet(fcs_files_ordered, path=(paste0(parentpath, subdirName, 1)))
+fs <- flowCore::read.flowSet(fcs_files[new_fcs_files_ordered], path=(paste0(parentpath, subdirName, 4)))
 fs
 
 x1 <- flowCore::read.flowSet(fcs_files_ordered[1],path = paste0(parentpath, subdirName, 1))
